@@ -64,6 +64,10 @@ class AudioLLM(nn.Module):
         self.original_vocab_size = None
         self.extended_vocab_size = None
         
+        # Speaker conditioning
+        self.speaker_dim = 512  # Default common embedding size
+        self.speaker_proj = None
+        
     def load_model(self):
         """Load and extend the base model with audio vocabulary."""
         logger.info(f"Loading base model: {self.model_name}")
@@ -112,6 +116,10 @@ class AudioLLM(nn.Module):
         
         # Extend vocabulary for audio tokens
         self._extend_vocabulary()
+        
+        # Initialize speaker projection
+        # Projects speaker embedding dim -> model hidden size
+        self.speaker_proj = nn.Linear(self.speaker_dim, self.model.config.hidden_size).to(self.device, dtype=self.model.dtype)
         
         logger.info(f"Model loaded. Vocab extended: {self.original_vocab_size} → {self.extended_vocab_size}")
         
@@ -197,20 +205,23 @@ class AudioLLM(nn.Module):
     def prepare_audio_input(
         self,
         audio_tokens: torch.Tensor,
-        text_prompt: Optional[str] = None
-    ) -> torch.Tensor:
+        text_prompt: Optional[str] = None,
+        speaker_embedding: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Prepare input sequence with audio tokens.
+        Prepare input embeddings with optional speaker conditioning.
         
         Args:
             audio_tokens: SNAC audio tokens
             text_prompt: Optional text prefix
+            speaker_embedding: Optional speaker vector [1, speaker_dim]
             
         Returns:
-            Combined token sequence for model input
+            Tuple(inputs_embeds, attention_mask)
         """
         sequences = []
         
+        # 1. Build Token Sequence (IDs)
         # Add text prompt if provided
         if text_prompt:
             text_tokens = self.text_to_tokens(text_prompt)
@@ -230,7 +241,36 @@ class AudioLLM(nn.Module):
         audio_end_id = self.tokenizer.convert_tokens_to_ids(self.AUDIO_END_TOKEN)
         sequences.append(torch.tensor([audio_end_id], device=self.device))
         
-        return torch.cat(sequences, dim=0).unsqueeze(0)
+        # Concatenate all IDs
+        input_ids = torch.cat(sequences, dim=0).unsqueeze(0) # [1, seq_len]
+        
+        # 2. Convert to Embeddings
+        # Get base token embeddings
+        inputs_embeds = self.model.get_input_embeddings()(input_ids) # [1, seq_len, hidden_size]
+        
+        # 3. Inject Speaker Conditioning (Session Anchoring)
+        if speaker_embedding is not None and self.speaker_proj is not None:
+            # Project embedding [1, speaker_dim] -> [1, hidden_size]
+            # Ensure dtype matches
+            embed_input = speaker_embedding.to(device=self.device, dtype=self.model.dtype)
+            speaker_cond = self.speaker_proj(embed_input)
+            
+            # Reshape to [1, 1, hidden_size] to act as a prefix token representation
+            if speaker_cond.dim() == 2:
+                speaker_cond = speaker_cond.unsqueeze(1)
+                
+            # Concatenate: [Speaker_Emb, Text_Emb, Audio_Start, Audio_Tokens...]
+            print(f"[DEBUG] Injecting speaker embedding (Session Anchor). Shape: {speaker_cond.shape}")
+            inputs_embeds = torch.cat([speaker_cond, inputs_embeds], dim=1)
+            
+        # 4. Create Attention Mask
+        attention_mask = torch.ones(
+            inputs_embeds.shape[:2], 
+            dtype=torch.long, 
+            device=self.device
+        )
+            
+        return inputs_embeds, attention_mask
     
     def forward(
         self,
@@ -260,35 +300,78 @@ class AudioLLM(nn.Module):
     @torch.no_grad()
     def generate_response(
         self,
-        input_ids: torch.Tensor,
+        input_ids: Optional[torch.Tensor] = None,
         max_new_tokens: int = 500,
         temperature: float = 0.7,
         top_p: float = 0.9,
         do_sample: bool = True,
+        override_output_ids: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
         **kwargs
     ) -> torch.Tensor:
         """
         Generate a response (text or audio tokens).
         
         Args:
-            input_ids: Input token sequence
+            input_ids: Input token sequence (optional if inputs_embeds provided)
             max_new_tokens: Maximum tokens to generate
             temperature: Sampling temperature
             top_p: Nucleus sampling probability
             do_sample: Whether to sample vs greedy
+            override_output_ids: Pre-computed tokens to return immediately
+            inputs_embeds: Input embeddings (includes speaker conditioning)
+            attention_mask: Attention mask for inputs
             
         Returns:
             Generated token sequence
         """
-        return self.model.generate(
-            input_ids=input_ids,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            do_sample=do_sample,
-            pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+        # DEBUG: Return override if provided
+        if override_output_ids is not None:
+            print(f"[DEBUG] Using override output ({len(override_output_ids)} tokens)")
+            return override_output_ids.to(self.device)
+            
+        # Create attention mask if not provided
+        if attention_mask is None:
+            if input_ids is not None:
+                attention_mask = torch.ones_like(input_ids)
+            elif inputs_embeds is not None:
+                 attention_mask = torch.ones(inputs_embeds.shape[:2], dtype=torch.long, device=self.device)
+            else:
+                raise ValueError("Either input_ids or inputs_embeds must be provided")
+
+        if inputs_embeds is not None:
+            print(f"[DEBUG] Generating with inputs_embeds shape: {inputs_embeds.shape}")
+        elif input_ids is not None:
+            print(f"[DEBUG] Generating with input_ids shape: {input_ids.shape}")
+
+        from transformers import TextStreamer
+        streamer = TextStreamer(self.tokenizer, skip_prompt=True)
+        
+        # Determine generate args
+        # Note: input_ids is mutually exclusive with inputs_embeds in some HF versions,
+        # but usually providing inputs_embeds overrides input_ids.
+        # However, to be safe, we pass exactly one main input.
+        
+        gen_kwargs = {
+            "attention_mask": attention_mask,
+            "max_new_tokens": max_new_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+            "streamer": streamer,
             **kwargs
-        )
+        }
+        
+        if inputs_embeds is not None:
+            gen_kwargs["inputs_embeds"] = inputs_embeds
+        else:
+            gen_kwargs["input_ids"] = input_ids
+
+        output = self.model.generate(**gen_kwargs)
+        
+        return output
     
     def extract_audio_tokens(self, generated_ids: torch.Tensor) -> Optional[torch.Tensor]:
         """
@@ -345,6 +428,18 @@ def test_audio_llm():
     # Test token conversion (without loading model)
     fake_audio_tokens = torch.tensor([0, 100, 4095])
     print(f"Sample SNAC tokens: {fake_audio_tokens.tolist()}")
+    
+    # Test prepare_audio_input with embedding
+    print("\nTesting conditioning signature...")
+    fake_embedding = torch.randn(1, 512)
+    # We can't fully run prepare_audio_input without loading the model/tokenizer
+    # but we can verify the method signature exists
+    import inspect
+    sig = inspect.signature(model.prepare_audio_input)
+    if "speaker_embedding" in sig.parameters:
+        print("✓ prepare_audio_input accepts speaker_embedding")
+    else:
+        print("❌ prepare_audio_input MISSING speaker_embedding")
     
     print("✓ AudioLLM basic test passed!")
     print("Note: Full test requires model download (~4GB)")

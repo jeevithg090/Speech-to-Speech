@@ -84,3 +84,7 @@ data/
 # OS files
 .DS_Store
 Thumbs.db
+*.onnx
+*.onnx.json
+*.log
+*.pid
