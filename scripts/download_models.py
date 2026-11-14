@@ -1,175 +1,74 @@
 """
-Model Download Script
+Pre-download the models used by the Apollo Voice Engine into the Hugging Face cache.
 
-Downloads required models from HuggingFace:
-- Sarvam-1 2B (Indic-optimized LLM)
-- SNAC 24kHz (Neural Audio Codec)
+- ``sarvamai/sarvam-1`` (Indic-optimized 2B LLM, ~5 GB)
+- ``hubertsiuzdak/snac_24khz`` (SNAC neural audio codec)
+
+Files are fetched with ``huggingface_hub.snapshot_download`` (no weights are
+loaded into memory). Set ``HF_TOKEN`` if a model requires authentication.
+
+Usage:
+    python scripts/download_models.py [--cache-dir DIR] [--skip-sarvam] [--skip-snac]
+    python scripts/download_models.py --validate-only
 """
 
-import os
-import sys
-from pathlib import Path
+from __future__ import annotations
+
 import argparse
 import logging
+import sys
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("download_models")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+MODELS = {
+    "sarvam": ("sarvamai/sarvam-1", ["*.json", "*.safetensors", "*.model", "*.txt"]),
+    "snac": ("hubertsiuzdak/snac_24khz", ["config.json", "pytorch_model.bin"]),
+}
 
 
-def download_sarvam(cache_dir: str = None):
-    """Download Sarvam-1 2B model."""
+def download(repo_id: str, patterns: list[str], cache_dir: str | None, local_only: bool) -> bool:
+    from huggingface_hub import snapshot_download
+
     try:
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        
-        model_name = "sarvamai/sarvam-1"
-        logger.info(f"Downloading {model_name}...")
-        
-        # Download tokenizer first (smaller)
-        logger.info("Downloading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-            cache_dir=cache_dir
+        path = snapshot_download(
+            repo_id=repo_id,
+            allow_patterns=patterns,
+            cache_dir=cache_dir,
+            local_files_only=local_only,
         )
-        logger.info(f"Tokenizer vocab size: {tokenizer.vocab_size}")
-        
-        # Download model
-        logger.info("Downloading model (this may take a while)...")
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            trust_remote_code=True,
-            torch_dtype="auto",
-            cache_dir=cache_dir
+    except Exception as exc:
+        logger.error(
+            "%s %s failed: %s", "Validating" if local_only else "Downloading", repo_id, exc
         )
-        logger.info(f"Model downloaded: {model.num_parameters() / 1e9:.2f}B parameters")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to download Sarvam-1: {e}")
         return False
-
-
-def download_snac(cache_dir: str = None):
-    """Download SNAC audio codec."""
-    try:
-        logger.info("Downloading SNAC 24kHz model...")
-        
-        from snac import SNAC
-        
-        model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-        logger.info("SNAC model downloaded successfully")
-        
-        return True
-        
-    except ImportError:
-        logger.error("SNAC package not installed. Run: pip install snac")
-        return False
-    except Exception as e:
-        logger.error(f"Failed to download SNAC: {e}")
-        return False
-
-
-def validate_downloads():
-    """Validate that models are properly downloaded."""
-    logger.info("Validating downloads...")
-    
-    issues = []
-    
-    # Check transformers can find Sarvam-1
-    try:
-        from transformers import AutoConfig
-        config = AutoConfig.from_pretrained(
-            "sarvamai/sarvam-1",
-            trust_remote_code=True
-        )
-        logger.info(f"✓ Sarvam-1 config loaded: {config.hidden_size} hidden, {config.num_hidden_layers} layers")
-    except Exception as e:
-        issues.append(f"Sarvam-1 validation failed: {e}")
-    
-    # Check SNAC
-    try:
-        from snac import SNAC
-        logger.info("✓ SNAC package available")
-    except ImportError:
-        issues.append("SNAC package not installed")
-    
-    if issues:
-        logger.warning("Validation issues found:")
-        for issue in issues:
-            logger.warning(f"  - {issue}")
-        return False
-    
-    logger.info("✓ All models validated successfully!")
+    logger.info("%s available at %s", repo_id, path)
     return True
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Download Apollo Voice Engine models")
+    parser.add_argument("--cache-dir", default=None, help="Hugging Face cache directory")
+    parser.add_argument("--skip-sarvam", action="store_true", help="Skip Sarvam-1")
+    parser.add_argument("--skip-snac", action="store_true", help="Skip SNAC")
     parser.add_argument(
-        "--cache-dir",
-        type=str,
-        default=None,
-        help="Directory to cache downloaded models"
+        "--validate-only", action="store_true", help="Only check that models are already cached"
     )
-    parser.add_argument(
-        "--skip-sarvam",
-        action="store_true",
-        help="Skip downloading Sarvam-1 model"
-    )
-    parser.add_argument(
-        "--skip-snac",
-        action="store_true",
-        help="Skip downloading SNAC model"
-    )
-    parser.add_argument(
-        "--validate-only",
-        action="store_true",
-        help="Only validate existing downloads"
-    )
-    
     args = parser.parse_args()
-    
-    if args.validate_only:
-        success = validate_downloads()
-        sys.exit(0 if success else 1)
-    
-    success = True
-    
-    if not args.skip_sarvam:
-        logger.info("=" * 50)
-        logger.info("STEP 1: Downloading Sarvam-1 2B")
-        logger.info("=" * 50)
-        if not download_sarvam(args.cache_dir):
-            success = False
-    
-    if not args.skip_snac:
-        logger.info("=" * 50)
-        logger.info("STEP 2: Downloading SNAC")
-        logger.info("=" * 50)
-        if not download_snac(args.cache_dir):
-            success = False
-    
-    logger.info("=" * 50)
-    logger.info("STEP 3: Validating Downloads")
-    logger.info("=" * 50)
-    if not validate_downloads():
-        success = False
-    
-    if success:
-        logger.info("")
-        logger.info("🎉 All models downloaded successfully!")
-        logger.info("You can now run the demo: python scripts/demo.py")
-    else:
-        logger.error("")
-        logger.error("⚠ Some downloads failed. Please check the errors above.")
+
+    selected = [
+        name
+        for name in MODELS
+        if not (name == "sarvam" and args.skip_sarvam) and not (name == "snac" and args.skip_snac)
+    ]
+    ok = all(
+        download(*MODELS[name], cache_dir=args.cache_dir, local_only=args.validate_only)
+        for name in selected
+    )
+    if not ok:
+        logger.error("Some models are missing; see errors above.")
         sys.exit(1)
+    logger.info("All selected models are available.")
 
 
 if __name__ == "__main__":
