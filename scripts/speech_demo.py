@@ -210,7 +210,20 @@ async def speech_to_speech(audio: UploadFile = File(...), language: str = Form("
             ) from exc
 
         stt_start = time.perf_counter()
-        model = get_whisper_model()
+        try:
+            model = get_whisper_model()
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail='Speech recognition is not installed. Run: pip install -e ".[speech]"',
+            ) from exc
+        except Exception as exc:  # download / load failure
+            logger.exception("Whisper model failed to load")
+            raise HTTPException(
+                status_code=503,
+                detail=f"The Whisper '{WHISPER_MODEL_NAME}' model could not be loaded. "
+                "Check the server log and your network connection.",
+            ) from exc
         result = model.transcribe(wav, language=language, task="transcribe", fp16=False)
         stt_ms = (time.perf_counter() - stt_start) * 1000
 
