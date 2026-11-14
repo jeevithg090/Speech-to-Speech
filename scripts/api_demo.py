@@ -30,6 +30,7 @@ from apollo_voice_engine.dialogue import LANGUAGES, DialoguePolicy  # noqa: E402
 from apollo_voice_engine.metrics import RunningMetrics  # noqa: E402
 from apollo_voice_engine.safety.classifier import SafetyClassifier  # noqa: E402
 from apollo_voice_engine.settings import load_settings  # noqa: E402
+from scripts.web_ui import install_web_ui  # noqa: E402
 
 DEMO_DIR = PROJECT_ROOT / "demo"
 settings = load_settings(default_port=8000)
@@ -45,6 +46,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+install_web_ui(app)
 
 classifier = SafetyClassifier()
 policy = DialoguePolicy(classifier)
