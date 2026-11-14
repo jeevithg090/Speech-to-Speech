@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Text chat demo of the Apollo Omni-Indic Voice Engine: multilingual safety classification and emergency escalation for Hindi, Tamil, Telugu, Kannada and English.">
+    <meta name="theme-color" content="#0f0f23">
+    <title>Apollo Voice Engine - Chat Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1f 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #00d4ff, #00ff94);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle { color: #8888aa; font-size: 1.1rem; }
+        
+        .badge-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        
+        .badge.highlight {
+            background: linear-gradient(90deg, rgba(0,212,255,0.2), rgba(0,255,148,0.2));
+            border-color: #00ff94;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .card h3, .card h2 { margin-bottom: 15px; font-weight: 600; }
+        
+        .lang-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .lang-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid transparent;
+        }
+        
+        .lang-btn:hover { background: rgba(255,255,255,0.15); }
+        .lang-btn.active { 
+            background: linear-gradient(90deg, #00d4ff, #00ff94);
+            color: #0f0f23;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            margin: 15px 0;
+        }
+        
+        textarea:focus { outline: none; border-color: #00d4ff; }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #00d4ff, #00ff94);
+            color: #0f0f23;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .submit-btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,212,255,0.3);
+        }
+        
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .example {
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .example:hover { background: rgba(255,255,255,0.15); }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .result.safe { background: rgba(0,255,148,0.1); border: 1px solid #00ff94; }
+        .result.caution { background: rgba(255,200,0,0.1); border: 1px solid #ffc800; }
+        .result.emergency { background: rgba(255,60,60,0.1); border: 1px solid #ff3c3c; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .status-safe { background: #00ff94; color: #0f0f23; }
+        .status-caution { background: #ffc800; color: #0f0f23; }
+        .status-emergency { background: #ff3c3c; color: #fff; }
+        
+        .response-text {
+            margin-top: 10px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+        
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00d4ff, #00ff94);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .metric-label { font-size: 12px; color: #8888aa; margin-top: 5px; }
+        
+        .keywords { 
+            margin-top: 10px; 
+            font-size: 13px; 
+            color: #8888aa;
+        }
+        
+        @media (max-width: 600px) {
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 16px; }
+            h1 { font-size: 1.8rem; }
+        }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+        .card-title { font-size: 1.1rem; margin-bottom: 12px; }
+        .error-msg { color: #ff6b6b; margin-top: 12px; font-size: 14px; }
+        .submit-btn:disabled { opacity: 0.6; cursor: wait; }
+        button.example { font: inherit; font-size: 13px; color: inherit; border: none; }
+        button:focus-visible, textarea:focus-visible { outline: 2px solid #4facfe; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 Apollo Omni-Indic Voice Engine</h1>
+            <p class="subtitle">Unified Speech-to-Speech Transformer for Indian Languages</p>
+            <div class="badge-row">
+                <span class="badge highlight">Rule-based demo (no model loaded)</span>
+                <span class="badge">🎯 4 Indian Languages + English</span>
+                <span class="badge">🔐 Safety First</span>
+            </div>
+        </header>
+        
+        <div class="card">
+            <h2 class="card-title" id="langLabel">🌐 Select Language</h2>
+            <div class="lang-buttons" role="group" aria-labelledby="langLabel">
+                <button type="button" class="lang-btn active" data-lang="hi" aria-pressed="true">हिंदी (Hindi)</button>
+                <button type="button" class="lang-btn" data-lang="ta" aria-pressed="false">தமிழ் (Tamil)</button>
+                <button type="button" class="lang-btn" data-lang="te" aria-pressed="false">తెలుగు (Telugu)</button>
+                <button type="button" class="lang-btn" data-lang="kn" aria-pressed="false">ಕನ್ನಡ (Kannada)</button>
+                <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">English</button>
+            </div>
+            
+            <label for="queryInput" class="visually-hidden">Your query</label>
+            <textarea id="queryInput" placeholder="Type your query here..." maxlength="2000"></textarea>
+            <button type="button" class="submit-btn" id="submitBtn" onclick="sendQuery()">Send Query</button>
+            <p id="errorMsg" class="error-msg" role="alert" hidden></p>
+            
+            <div class="examples">
+                <span style="color: #8888aa; font-size: 13px;">Try:</span>
+                <button type="button" class="example" onclick="setQuery(\'नमस्ते, मेरी अपॉइंटमेंट कब है?\')">Appointment (Hindi)</button>
+                <button type="button" class="example" onclick="setQuery(\'மருந்தகம் எங்கே?\')">Pharmacy (Tamil)</button>
+                <button type="button" class="example" onclick="setQuery(\'మీరు ఎలా సహాయం చేయగలరు?\')">Help (Telugu)</button>
+                <button type="button" class="example" onclick="setQuery(\'मुझे छाती में दर्द हो रहा है\')">⚠️ Emergency</button>
+                <button type="button" class="example" onclick="setQuery(\'I need an ambulance!\')">🚨 Ambulance</button>
+            </div>
+            
+            <div id="result" class="result" aria-live="polite">
+                <span id="statusBadge" class="status-badge"></span>
+                <div id="responseText" class="response-text"></div>
+                <div id="keywords" class="keywords"></div>
+            </div>
+        </div>
+        
+        <div class="metrics-row">
+            <div class="metric">
+                <div class="metric-value" id="metricLatency">--</div>
+                <div class="metric-label">Server latency (ms)</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">5</div>
+                <div class="metric-label">Languages</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="metricRequests">0</div>
+                <div class="metric-label">Requests</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedLang = 'hi';
+        
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.lang-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
+                btn.classList.add('active');
+                btn.setAttribute('aria-pressed', 'true');
+                selectedLang = btn.dataset.lang;
+            });
+        });
+        
+        function setQuery(text) {
+            document.getElementById('queryInput').value = text;
+        }
+        
+        async function sendQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            const button = document.getElementById('submitBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.hidden = true;
+            if (!query) {
+                errorMsg.textContent = 'Please type a query first.';
+                errorMsg.hidden = false;
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'Sending…';
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: query, language: selectedLang })
+                });
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                showResult(await response.json());
+            } catch (error) {
+                errorMsg.textContent = `Request failed: ${error.message}`;
+                errorMsg.hidden = false;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Send Query';
+            }
+        }
+        
+        function showResult(data) {
+            const resultDiv = document.getElementById('result');
+            const badge = document.getElementById('statusBadge');
+            const text = document.getElementById('responseText');
+            const latency = document.getElementById('metricLatency');
+            const requests = document.getElementById('metricRequests');
+            
+            resultDiv.className = 'result ' + data.safety_level;
+            resultDiv.style.display = 'block';
+            
+            badge.className = 'status-badge status-' + data.safety_level;
+            badge.textContent = data.action === 'TRANSFER_TO_HUMAN' ? '🚨 TRANSFER TO HUMAN' : '✓ ' + data.safety_level.toUpperCase();
+            
+            text.textContent = data.response;
+            latency.textContent = data.latency_ms.toFixed(2);
+            
+            // Update request count
+            fetch('/api/metrics').then(r => r.json()).then(m => {
+                requests.textContent = m.total_requests;
+            }).catch(() => {});
+        }
+    </script>
+</body>
+</html>
