@@ -88,3 +88,13 @@ Thumbs.db
 *.onnx.json
 *.log
 *.pid
+
+# Ruff / mypy caches
+.ruff_cache/
+.mypy_cache/
+
+# Local outputs and checkpoints
+test_outputs/
+checkpoints/
+indic_voices_dataset/dataset_audio/
+!.env.example

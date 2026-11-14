@@ -1,59 +1,85 @@
-[project]
-name = "apollo-voice-engine"
-version = "0.1.0"
-description = "Unified speech-to-speech transformer for Indian regional languages"
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "Proprietary"}
-authors = [
-    {name = "Apollo AI Team"}
-]
-
-dependencies = [
-    "torch>=2.1.0",
-    "torchaudio>=2.1.0",
-    "transformers>=4.36.0",
-    "snac>=1.2.0",
-    "accelerate>=0.25.0",
-    "datasets>=2.16.0",
-    "soundfile>=0.12.1",
-    "librosa>=0.10.1",
-    "peft>=0.7.0",
-    "bitsandbytes>=0.42.0",
-    "scipy>=1.11.0",
-    "numpy>=1.24.0",
-    "pyyaml>=6.0.1",
-    "tqdm>=4.66.0",
-    "webrtcvad>=2.0.10",
-    "aiohttp>=3.9.0",
-    "aiortc>=1.6.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.12.0",
-    "ruff>=0.1.9",
-    "mypy>=1.8.0",
-]
-training = [
-    "wandb>=0.16.0",
-    "tensorboard>=2.15.0",
-    "deepspeed>=0.12.0",
-]
-
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "apollo-voice-engine"
+version = "0.1.0"
+description = "Speech-to-speech voice assistant for Indian languages (SNAC + extended Sarvam-1)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "jeevithg090" }]
+keywords = ["speech-to-speech", "snac", "sarvam", "indic", "voice-assistant"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.1",
+    "numpy>=1.24",
+    "transformers>=4.56",
+    "accelerate>=0.26",
+    "huggingface_hub>=0.20",
+    "snac>=1.2.1",
+    "pyyaml>=6.0.1",
+    "webrtcvad-wheels>=2.0.14",
+]
+
+[project.optional-dependencies]
+# FastAPI demo servers (scripts/api_demo.py, speech_demo.py, unified_demo.py)
+server = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",
+    "python-dotenv>=1.0",
+]
+# Whisper STT + Edge-TTS (scripts/speech_demo.py, unified_demo.py fallback). Needs ffmpeg.
+speech = [
+    "openai-whisper>=20231117",
+    "edge-tts>=6.1",
+]
+# Training and offline audio tooling (scripts/train_audio_llm.py, demo.py, unified_cli.py)
+training = [
+    "librosa>=0.10.1",
+    "soundfile>=0.12.1",
+    "tqdm>=4.66",
+]
+# 8-/4-bit loading on CUDA
+quantization = ["bitsandbytes>=0.43"]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
 [tool.setuptools.packages.find]
 include = ["apollo_voice_engine*"]
 
-[tool.black]
-line-length = 100
-target-version = ["py310"]
+[tool.setuptools.package-data]
+apollo_voice_engine = ["config/*.yaml"]
 
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "I", "W"]
+target-version = "py310"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP", "SIM"]
+ignore = [
+    "E501",   # long multilingual string literals are expected; formatter handles code
+    "B008",   # FastAPI's File()/Form() defaults
+    "UP007",  # keep Optional[...] where it reads better on py3.10
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apollo_voice_engine", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    "ignore:`torch.jit.script` is deprecated:FutureWarning",
+    "ignore::DeprecationWarning:webrtcvad",
+]
