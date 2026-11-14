@@ -42,6 +42,7 @@ from apollo_voice_engine.dialogue import (  # noqa: E402
 )
 from apollo_voice_engine.metrics import RunningMetrics  # noqa: E402
 from apollo_voice_engine.settings import load_settings  # noqa: E402
+from scripts.web_ui import install_web_ui  # noqa: E402
 
 logger = logging.getLogger("speech_demo")
 
@@ -62,6 +63,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+install_web_ui(app)
 
 policy = DialoguePolicy()
 metrics = RunningMetrics()

@@ -51,6 +51,7 @@ from apollo_voice_engine.models.snac_wrapper import SNACWrapper  # noqa: E402
 from apollo_voice_engine.models.speaker_encoder import SpeakerEncoder  # noqa: E402
 from apollo_voice_engine.safety.classifier import SafetyClassifier  # noqa: E402
 from apollo_voice_engine.settings import load_settings  # noqa: E402
+from scripts.web_ui import install_web_ui  # noqa: E402
 
 logger = logging.getLogger("unified_demo")
 
@@ -323,6 +324,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+install_web_ui(app)
 
 
 @app.get("/", response_class=HTMLResponse)

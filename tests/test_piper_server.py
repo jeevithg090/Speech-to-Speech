@@ -98,3 +98,23 @@ def test_synthesize_errors(base_url, payload, code):
 
 def test_unknown_post_route(base_url):
     assert request(f"{base_url}/nope", {"text": "x"})[0] == 404
+
+
+@pytest.mark.parametrize("asset", ["apollo.css", "apollo-ui.js", "favicon.svg"])
+def test_serves_shared_ui_assets(base_url, asset):
+    status, ctype, _ = request(f"{base_url}/assets/{asset}")
+    assert status == 200 and ctype == piper.ASSET_TYPES[asset]
+
+
+@pytest.mark.parametrize("path", ["/assets/", "/assets/../404.html", "/assets/nope.css"])
+def test_only_whitelisted_assets(base_url, path):
+    assert request(f"{base_url}{path}")[0] == 404
+
+
+def test_browser_404_is_html(base_url):
+    req = urllib.request.Request(f"{base_url}/missing", headers={"Accept": "text/html"})
+    with pytest.raises(urllib.error.HTTPError) as err:
+        urllib.request.urlopen(req, timeout=5)
+    assert err.value.code == 404
+    assert err.value.headers["Content-Type"].startswith("text/html")
+    assert b"Page not found" in err.value.read()

@@ -125,3 +125,36 @@ class TestSpeechDemo:
         assert body["transcription"] == "I have chest pain"
         assert body["action"] == "TRANSFER_TO_HUMAN"
         assert body["stt_ms"] >= 0
+
+
+class TestSharedWebUi:
+    """Assets, favicon and the 404 page installed by scripts.web_ui."""
+
+    @pytest.fixture
+    def client(self):
+        return TestClient(api_demo.app)
+
+    def test_design_system_assets_served(self, client):
+        css = client.get("/assets/apollo.css")
+        assert css.status_code == 200 and css.headers["content-type"].startswith("text/css")
+        assert "prefers-color-scheme: dark" in css.text
+        assert client.get("/assets/apollo-ui.js").status_code == 200
+        assert client.get("/favicon.ico").headers["content-type"] == "image/svg+xml"
+
+    def test_pages_link_shared_assets_and_metadata(self, client):
+        html = client.get("/").text
+        for snippet in ('href="assets/apollo.css"', 'rel="icon"', 'property="og:title"', "<title>"):
+            assert snippet in html
+
+    def test_unknown_page_returns_html_404_for_browsers(self, client):
+        r = client.get("/no-such-page", headers={"Accept": "text/html"})
+        assert r.status_code == 404
+        assert "Page not found" in r.text
+
+    def test_unknown_api_route_stays_json(self, client):
+        r = client.get("/api/nope", headers={"Accept": "text/html"})
+        assert r.status_code == 404 and r.json() == {"detail": "Not Found"}
+        assert client.get("/no-such-page").json() == {"detail": "Not Found"}
+
+    def test_asset_traversal_blocked(self, client):
+        assert client.get("/assets/../../pyproject.toml").status_code == 404

@@ -39,6 +39,14 @@ except ImportError:
     PIPER_AVAILABLE = False
 
 DEMO_PAGE = PROJECT_ROOT / "demo" / "piper_demo.html"
+NOT_FOUND_PAGE = PROJECT_ROOT / "demo" / "404.html"
+ASSETS_DIR = PROJECT_ROOT / "demo" / "assets"
+# Only these shared UI files are served under /assets/ (no directory listing, no traversal).
+ASSET_TYPES = {
+    "apollo.css": "text/css; charset=utf-8",
+    "apollo-ui.js": "text/javascript; charset=utf-8",
+    "favicon.svg": "image/svg+xml",
+}
 VOICE_DIR = Path(os.getenv("PIPER_VOICE_DIR", Path.home() / ".local" / "share" / "piper_voices"))
 MAX_BODY_BYTES = 64 * 1024
 
@@ -113,27 +121,43 @@ class PiperHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_file(self, status: int, path: Path, content_type: str) -> None:
+        body = path.read_bytes()
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _not_found(self) -> None:
+        """HTML 404 page for browsers, JSON for API clients."""
+        if "text/html" in self.headers.get("Accept", "") and NOT_FOUND_PAGE.exists():
+            self._send_file(404, NOT_FOUND_PAGE, "text/html; charset=utf-8")
+        else:
+            self._send_json(404, {"error": "Not found"})
+
     def do_GET(self) -> None:  # noqa: N802 - http.server API
-        if self.path in ("/", "/index.html"):
+        path = self.path.split("?", 1)[0]
+        asset = path.removeprefix("/assets/") if path.startswith("/assets/") else None
+        if path in ("/", "/index.html"):
             if not DEMO_PAGE.exists():
                 self._send_json(404, {"error": "Demo page not found"})
                 return
-            body = DEMO_PAGE.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        elif self.path == "/voices":
+            self._send_file(200, DEMO_PAGE, "text/html; charset=utf-8")
+        elif asset in ASSET_TYPES:
+            self._send_file(200, ASSETS_DIR / asset, ASSET_TYPES[asset])
+        elif path == "/favicon.ico":
+            self._send_file(200, ASSETS_DIR / "favicon.svg", ASSET_TYPES["favicon.svg"])
+        elif path == "/voices":
             voices = [{"id": name, **data["config"]} for name, data in VOICES.items()]
             self._send_json(200, {"voices": voices})
-        elif self.path == "/health":
+        elif path == "/health":
             self._send_json(
                 200,
                 {"status": "ok", "piper_available": PIPER_AVAILABLE, "voices_loaded": len(VOICES)},
             )
         else:
-            self._send_json(404, {"error": "Not found"})
+            self._not_found()
 
     def do_POST(self) -> None:  # noqa: N802 - http.server API
         if self.path != "/synthesize":
