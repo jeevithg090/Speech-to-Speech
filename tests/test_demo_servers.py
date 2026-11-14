@@ -126,6 +126,20 @@ class TestSpeechDemo:
         assert body["action"] == "TRANSFER_TO_HUMAN"
         assert body["stt_ms"] >= 0
 
+    @needs_ffmpeg
+    @pytest.mark.parametrize(
+        "error,hint", [(ImportError("whisper"), "pip install"), (RuntimeError("403"), "Whisper")]
+    )
+    def test_missing_whisper_is_a_clear_503(self, client, monkeypatch, error, hint):
+        def broken():
+            raise error
+
+        monkeypatch.setattr(speech_demo, "get_whisper_model", broken)
+        wav = float_to_wav_bytes(np.sin(np.linspace(0, 2000, 16000)) * 0.3, 16000)
+        r = client.post("/api/speech-to-speech", files={"audio": ("a.wav", wav, "audio/wav")})
+        assert r.status_code == 503
+        assert hint in r.json()["detail"]
+
 
 class TestSharedWebUi:
     """Assets, favicon and the 404 page installed by scripts.web_ui."""
