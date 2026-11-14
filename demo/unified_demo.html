@@ -2,603 +2,348 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Unified speech-to-speech demo of the Apollo Voice Engine: SNAC audio tokens processed by an extended Sarvam-1 language model.">
-    <meta name="theme-color" content="#0f0f23">
-    <title>Apollo Voice Engine - Unified Architecture</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unified Model Demo · Apollo Voice Engine</title>
+    <meta name="description" content="Unified speech-to-speech demo of the Apollo Voice Engine: audio is tokenised with SNAC, answered by an audio-extended Sarvam-1 model and decoded back to speech, with a consistent session voice.">
+    <meta name="theme-color" content="#f4f7fa">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Apollo Voice Engine · Unified SNAC + AudioLLM demo">
+    <meta property="og:description" content="One transformer that hears and speaks: SNAC audio tokens in, SNAC audio tokens out.">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/apollo.css">
+    <script>try{var t=localStorage.getItem("apollo-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+    <script src="assets/apollo-ui.js" defer></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        :root {
-            --primary: #6366f1;
-            --secondary: #22c55e;
-            --accent: #f59e0b;
-            --danger: #ef4444;
-            --bg-dark: #0f172a;
-            --bg-card: rgba(255,255,255,0.05);
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
+        .voice-id { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+        .voice-id__avatar {
+            width: 44px; height: 44px; border-radius: 50%; flex: none;
+            display: grid; place-items: center; font-weight: 700; font-size: var(--text-sm);
+            background: var(--surface-3); color: var(--text-muted); border: 1px solid var(--border);
+            transition: background-color var(--duration) var(--ease);
         }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-dark);
-            background-image: 
-                radial-gradient(ellipse at 30% 0%, rgba(99,102,241,0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 100%, rgba(34,197,94,0.1) 0%, transparent 50%);
-            min-height: 100vh;
-            color: var(--text);
-        }
-        
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-        
-        header { text-align: center; padding: 30px 0; }
-        
-        h1 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-        
-        .title-gradient {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .voice-card {
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .voice-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .voice-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #ec4899);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-        
-        .reset-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-muted);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .reset-btn:hover, .reset-btn.active {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: var(--danger);
-            color: #fca5a5;
-        }
-        
-        .subtitle { color: var(--text-muted); margin-bottom: 20px; }
-        
-        .architecture-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(34,197,94,0.2));
-            border: 1px solid var(--primary);
-            padding: 8px 16px;
-            border-radius: 25px;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-        
-        .pipeline-viz {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .pipeline-flow {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            font-size: 14px;
-        }
-        
-        .pipeline-node {
-            background: rgba(99,102,241,0.2);
-            border: 1px solid var(--primary);
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        
-        .pipeline-node.snac { border-color: var(--secondary); background: rgba(34,197,94,0.2); }
-        .pipeline-node.llm { border-color: var(--accent); background: rgba(245,158,11,0.2); }
-        
-        .pipeline-arrow {
-            color: var(--text-muted);
-            font-size: 20px;
-        }
-        
-        .main-card {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-        
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 12px 16px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-        }
-        
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: var(--accent);
-            animation: pulse 2s infinite;
-        }
-        
-        .status-dot.ready { background: var(--secondary); }
-        .status-dot.error { background: var(--danger); }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .lang-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        
-        .lang-btn {
-            padding: 10px 18px;
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 10px;
-            background: transparent;
-            color: var(--text);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .lang-btn:hover { border-color: var(--primary); }
-        .lang-btn.active {
-            background: linear-gradient(135deg, var(--primary), #818cf8);
-            border-color: transparent;
-        }
-        
-        .mic-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 30px 0;
-        }
-        
-        .mic-btn {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: none;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            font-size: 40px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 8px 30px rgba(99,102,241,0.3);
-        }
-        
-        .mic-btn:hover { transform: scale(1.05); }
-        .mic-btn.recording {
-            animation: record-pulse 1s infinite;
-            background: linear-gradient(135deg, var(--danger), #f87171);
-        }
-        
-        @keyframes record-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        .mic-btn.processing {
-            background: linear-gradient(135deg, var(--accent), #fbbf24);
-        }
-        
-        .status-text {
-            margin-top: 12px;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-        
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            margin-top: 20px;
-        }
-        
-        .metric-card {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-        }
-        
-        .metric-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-        
-        .metric-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-        
-        .chat-container {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 20px;
-        }
-        
-        .chat-bubble {
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            max-width: 85%;
-        }
-        
-        .chat-bubble.user {
-            background: rgba(99,102,241,0.2);
-            border: 1px solid rgba(99,102,241,0.3);
-            margin-left: auto;
-        }
-        
-        .chat-bubble.assistant {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .fallback-notice {
-            background: rgba(245,158,11,0.1);
-            border: 1px solid var(--accent);
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin-top: 10px;
-            font-size: 13px;
-            color: var(--accent);
-        }
-        
-        @media (max-width: 600px) {
-            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-            .pipeline-flow { font-size: 12px; }
-        }
+        .voice-id__avatar[data-locked] { color: #0f1b2d; border-color: transparent; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><span class="title-gradient">🏥 Apollo Voice Engine</span></h1>
-            <p class="subtitle">Unified Speech-to-Speech AI for Indian Languages</p>
-            <div class="architecture-badge">
-                🔬 De-novo Architecture: SNAC → AudioLLM → SNAC
-            </div>
-        </header>
-        
-        <div class="pipeline-viz">
-            <div class="pipeline-flow">
-                <div class="pipeline-node">🎤 Audio In</div>
-                <span class="pipeline-arrow">→</span>
-                <div class="pipeline-node snac">SNAC Encode</div>
-                <span class="pipeline-arrow">→</span>
-                <div class="pipeline-node llm">AudioLLM (Sarvam-1)</div>
-                <span class="pipeline-arrow">→</span>
-                <div class="pipeline-node snac">SNAC Decode</div>
-                <span class="pipeline-arrow">→</span>
-                <div class="pipeline-node">🔊 Audio Out</div>
-            </div>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="app-header">
+        <div class="app-header__inner">
+            <a class="brand" href="./">
+                <img class="brand__mark" src="assets/favicon.svg" alt="" width="32" height="32">
+                <span class="brand__text">
+                    <span class="brand__name">Apollo Voice Engine</span>
+                    <span class="brand__product">Unified model demo · SNAC + AudioLLM</span>
+                </span>
+            </a>
+            <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch theme">
+                <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+                <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            </button>
         </div>
-        
-        <div class="main-card">
-            <div class="status-bar">
-                <div class="status-indicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span id="modelStatus" role="status" aria-live="polite">Loading models...</span>
-                </div>
-                <span style="font-size: 12px; color: var(--text-muted);">Target: <500ms</span>
-            </div>
-            
-            <!-- Voice Identity Control -->
-            <div class="voice-card">
-                <div class="voice-info">
-                    <div class="voice-avatar" id="voiceAvatar">👤</div>
-                    <div>
-                        <div style="font-weight: 600; font-size: 14px;">Voice Identity</div>
-                        <div style="font-size: 11px; color: var(--text-muted);" id="voiceStatus">Not established</div>
+    </header>
+
+    <main id="main" class="page">
+        <section class="page-intro" aria-labelledby="pageTitle">
+            <h1 id="pageTitle">One model that hears and speaks</h1>
+            <p>Your recording is turned into SNAC audio tokens, the audio-extended Sarvam-1 model answers with audio tokens, and SNAC turns them back into speech. A speaker embedding taken from your first turn keeps the reply voice consistent for the session.</p>
+            <ol class="pipeline" aria-label="Processing steps">
+                <li><span class="pipeline__node">Audio in</span></li>
+                <li><span class="pipeline__node pipeline__node--codec">SNAC encode</span></li>
+                <li><span class="pipeline__node pipeline__node--llm">AudioLLM (Sarvam-1)</span></li>
+                <li><span class="pipeline__node pipeline__node--codec">SNAC decode</span></li>
+                <li><span class="pipeline__node">Audio out</span></li>
+            </ol>
+        </section>
+
+        <div class="alert alert--info" id="modelBanner" role="status" aria-live="polite">
+            <span class="spinner" aria-hidden="true" id="modelSpinner"></span>
+            <span><strong id="modelStatus">Loading models…</strong><span id="modelDetail">SNAC and Sarvam-1 load in the background on first start (about 5 GB). You can record now; replies use fallback mode until loading finishes.</span></span>
+        </div>
+
+        <div class="grid-2">
+            <div class="stack">
+                <section class="card" aria-labelledby="talkTitle">
+                    <div class="card__header">
+                        <h2 id="talkTitle" class="card__title">Speak</h2>
                     </div>
-                </div>
-                <button type="button" class="reset-btn" id="resetBtn" onclick="toggleReset()">
-                    🔄 New Session (Reset Voice)
-                </button>
+
+                    <div class="row row--between" style="gap:var(--space-3)">
+                        <div class="voice-id">
+                            <div class="voice-id__avatar" id="voiceAvatar" aria-hidden="true">—</div>
+                            <div style="min-width:0">
+                                <div style="font-weight:600">Session voice</div>
+                                <div class="hint" id="voiceStatus">Set from your next recording</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn--secondary btn--sm" id="resetBtn" aria-pressed="true">New voice next turn</button>
+                    </div>
+
+                    <fieldset class="field" style="border:0;margin:0;padding:0">
+                        <legend class="label" id="langLabel">Language</legend>
+                        <div class="segmented" id="langGroup" role="group" aria-labelledby="langLabel">
+                            <button type="button" class="segmented__option" data-value="hi" aria-pressed="false" lang="hi">हिंदी</button>
+                            <button type="button" class="segmented__option" data-value="ta" aria-pressed="false" lang="ta">தமிழ்</button>
+                            <button type="button" class="segmented__option" data-value="te" aria-pressed="false" lang="te">తెలుగు</button>
+                            <button type="button" class="segmented__option" data-value="kn" aria-pressed="false" lang="kn">ಕನ್ನಡ</button>
+                            <button type="button" class="segmented__option" data-value="en" aria-pressed="true">English</button>
+                        </div>
+                    </fieldset>
+
+                    <div class="mic">
+                        <button type="button" id="micBtn" class="mic__btn" data-state="idle" aria-pressed="false" aria-label="Start recording">
+                            <svg class="icon icon-mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
+                            <svg class="icon icon-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+                            <span class="spinner" aria-hidden="true"></span>
+                        </button>
+                        <p id="statusText" class="mic__status" role="status" aria-live="polite">Press the microphone to start</p>
+                        <p class="mic__hint">Recordings stop automatically after 30 seconds.</p>
+                    </div>
+                </section>
+
+                <section class="card" aria-labelledby="convTitle">
+                    <div class="card__header">
+                        <h2 id="convTitle" class="card__title">Conversation</h2>
+                        <button type="button" class="btn btn--ghost btn--sm" id="clearBtn" hidden>Clear</button>
+                    </div>
+                    <div id="fallbackNotice" class="alert alert--warning" hidden>
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>
+                        <span><strong>Fallback reply</strong><span id="fallbackReason">The unified model isn't available, so a greeting was spoken with Edge-TTS instead.</span></span>
+                    </div>
+                    <div id="chatContainer" class="chat" role="log" aria-live="polite" aria-label="Conversation" tabindex="0">
+                        <div class="empty" id="emptyState">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h0"/></svg>
+                            <strong>No turns yet</strong>
+                            <span>Record a question to send audio through the unified model.</span>
+                        </div>
+                    </div>
+                </section>
             </div>
-            
-            <div class="lang-buttons" role="group" aria-label="Response language">
-                <button type="button" class="lang-btn" data-lang="hi" aria-pressed="false">हिंदी</button>
-                <button type="button" class="lang-btn" data-lang="ta" aria-pressed="false">தமிழ்</button>
-                <button type="button" class="lang-btn" data-lang="te" aria-pressed="false">తెలుగు</button>
-                <button type="button" class="lang-btn" data-lang="kn" aria-pressed="false">ಕನ್ನಡ</button>
-                <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
-            </div>
-            
-            <div class="mic-container">
-                <button type="button" id="micBtn" class="mic-btn" aria-label="Start or stop recording">🎤</button>
-                <p id="statusText" class="status-text" role="status" aria-live="polite">Click to record</p>
-            </div>
-            
-            <div id="chatContainer" class="chat-container" aria-live="polite" aria-label="Conversation"></div>
-            
-            <div id="fallbackNotice" class="fallback-notice" style="display: none;">
-                ⚠️ Running in fallback mode. AudioLLM model not yet trained on speech tasks.
-            </div>
+
+            <aside class="stack" aria-label="Latency">
+                <section class="card" aria-labelledby="statsTitle">
+                    <h2 id="statsTitle" class="card__title">Last turn</h2>
+                    <dl class="stats">
+                        <div class="stat"><dt>SNAC encode</dt><dd><span id="encodeMetric">--</span><span class="unit">ms</span></dd></div>
+                        <div class="stat"><dt>LLM generate</dt><dd><span id="llmMetric">--</span><span class="unit">ms</span></dd></div>
+                        <div class="stat"><dt>SNAC decode</dt><dd><span id="decodeMetric">--</span><span class="unit">ms</span></dd></div>
+                        <div class="stat"><dt>Total</dt><dd><span id="totalMetric">--</span><span class="unit">ms</span></dd></div>
+                    </dl>
+                    <p class="hint">Measured on the server for each stage. Fallback replies only report a total.</p>
+                </section>
+                <section class="card" aria-labelledby="noteTitle">
+                    <h2 id="noteTitle" class="card__title">About this model</h2>
+                    <p class="hint">The repository ships the architecture and training code, not a trained speech checkpoint. Until you train one with <span class="mono">scripts/train_audio_llm.py</span>, the unified path returns arbitrary audio. That is expected.</p>
+                    <p class="hint">Architecture details as JSON: <a href="api/architecture">/api/architecture</a></p>
+                </section>
+            </aside>
         </div>
-        
-        <div class="metrics-grid">
-            <div class="metric-card">
-                <div class="metric-value" id="encodeMetric">--</div>
-                <div class="metric-label">SNAC Encode (ms)</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-value" id="llmMetric">--</div>
-                <div class="metric-label">LLM Generate (ms)</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-value" id="decodeMetric">--</div>
-                <div class="metric-label">SNAC Decode (ms)</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-value" id="totalMetric">--</div>
-                <div class="metric-label">Total (ms)</div>
-            </div>
+    </main>
+
+    <footer class="app-footer">
+        <div class="app-footer__inner">
+            <span>Apollo Omni-Indic Voice Engine · research prototype</span>
+            <span>Not medical advice.</span>
         </div>
-    </div>
-    
+    </footer>
+
     <script>
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let selectedLang = 'en';
-        let isRecording = false;
-        let resetNext = true; // Start with fresh session
-        
-        // Check model status
-        async function checkStatus() {
-            try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-                
-                const dot = document.getElementById('statusDot');
-                const status = document.getElementById('modelStatus');
-                
-                if (data.models_loaded) {
-                    dot.className = 'status-dot ready';
-                    status.textContent = 'Models loaded ✓';
-                } else if (data.error) {
-                    dot.className = 'status-dot error';
-                    status.textContent = 'Models unavailable: using fallback mode';
-                    status.title = data.error;
-                } else {
-                    status.textContent = 'Loading models...';
-                }
-            } catch (e) {
-                console.error('Status check failed:', e);
+        document.addEventListener("DOMContentLoaded", () => {
+            const MIC_LABELS = { idle: "Start recording", recording: "Stop recording", busy: "Processing your recording" };
+            const micBtn = document.getElementById("micBtn");
+            const statusText = document.getElementById("statusText");
+            const chat = document.getElementById("chatContainer");
+            const emptyState = document.getElementById("emptyState");
+            const clearBtn = document.getElementById("clearBtn");
+            const resetBtn = document.getElementById("resetBtn");
+            const languages = ApolloUI.singleSelect(document.getElementById("langGroup"));
+            let resetNext = true; // the first turn always establishes a new voice
+            let busy = false;
+            let player = null;
+            let healthTimer = null;
+
+            function setStatus(message, tone) {
+                statusText.textContent = message;
+                if (tone) statusText.dataset.tone = tone;
+                else delete statusText.dataset.tone;
             }
-        }
-        
-        setInterval(checkStatus, 5000);
-        checkStatus();
-        
-        // Language selection
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.lang-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-pressed', 'false');
+
+            async function checkStatus() {
+                const banner = document.getElementById("modelBanner");
+                const spinner = document.getElementById("modelSpinner");
+                const title = document.getElementById("modelStatus");
+                const detail = document.getElementById("modelDetail");
+                try {
+                    const data = await ApolloUI.fetchJson("api/health");
+                    if (data.models_loaded) {
+                        banner.className = "alert alert--success";
+                        spinner.hidden = true;
+                        title.textContent = "Models loaded. ";
+                        detail.textContent = "Recordings go through SNAC and the AudioLLM.";
+                        return;
+                    }
+                    if (data.error) {
+                        banner.className = "alert alert--warning";
+                        spinner.hidden = true;
+                        title.textContent = "Models unavailable, using fallback mode. ";
+                        detail.textContent = `Replies are spoken with Edge-TTS. Reason: ${data.error}`;
+                        return;
+                    }
+                } catch (err) {
+                    banner.className = "alert alert--error";
+                    spinner.hidden = true;
+                    title.textContent = "Can't reach the server. ";
+                    detail.textContent = "Check that unified_demo.py is still running; retrying…";
+                }
+                healthTimer = setTimeout(checkStatus, 5000);
+            }
+
+            function syncReset() {
+                resetBtn.setAttribute("aria-pressed", String(resetNext));
+                resetBtn.textContent = resetNext ? "New voice next turn" : "Reset voice";
+            }
+
+            function addChatBubble(type, text, opts = {}) {
+                emptyState.hidden = true;
+                clearBtn.hidden = false;
+                const bubble = document.createElement("div");
+                bubble.className = `bubble bubble--${type}`;
+                const meta = document.createElement("div");
+                meta.className = "bubble__meta";
+                meta.textContent = type === "user" ? "You" : "Assistant";
+                if (opts.badge) {
+                    const badge = document.createElement("span");
+                    badge.className = `badge badge--${opts.badgeTone || "info"}`;
+                    badge.textContent = opts.badge;
+                    meta.appendChild(badge);
+                }
+                const body = document.createElement("div");
+                body.textContent = text;
+                bubble.append(meta, body);
+                if (opts.audio) {
+                    const replay = document.createElement("button");
+                    replay.type = "button";
+                    replay.className = "btn btn--secondary btn--sm";
+                    replay.style.marginTop = "var(--space-2)";
+                    replay.textContent = "Play reply";
+                    replay.addEventListener("click", () => playAudio(opts.audio, opts.format));
+                    bubble.appendChild(replay);
+                }
+                chat.appendChild(bubble);
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            function playAudio(base64Audio, format = "mp3") {
+                if (player) player.pause();
+                const mime = format === "wav" ? "audio/wav" : "audio/mpeg";
+                player = new Audio(`data:${mime};base64,${base64Audio}`);
+                setStatus("Playing the reply…", "ok");
+                player.onended = () => setStatus("Press the microphone to record again");
+                player.onerror = () => setStatus("The reply audio couldn't be played.", "error");
+                player.play().catch(() => setStatus("Autoplay was blocked. Use “Play reply” in the conversation.", "error"));
+            }
+
+            function setMetric(id, value) {
+                document.getElementById(id).textContent = ApolloUI.formatMs(value);
+            }
+
+            function handleResponse(data) {
+                const m = data.metrics || {};
+                setMetric("encodeMetric", m.snac_encode_ms);
+                setMetric("llmMetric", m.llm_generate_ms);
+                setMetric("decodeMetric", m.snac_decode_ms);
+                setMetric("totalMetric", m.total_ms);
+
+                const notice = document.getElementById("fallbackNotice");
+                notice.hidden = !data.fallback_mode;
+                if (data.fallback_mode && data.transcription) {
+                    const reason = data.transcription.replace(/^\[Fallback mode: (.*)\]$/, "$1");
+                    document.getElementById("fallbackReason").textContent =
+                        ` The unified model couldn't answer (${reason}), so a greeting was spoken with Edge-TTS instead.`;
+                }
+
+                addChatBubble("user", "Voice message", {
+                    badge: data.input_tokens ? `${data.input_tokens} SNAC tokens` : null,
                 });
-                btn.classList.add('active');
-                btn.setAttribute('aria-pressed', 'true');
-                selectedLang = btn.dataset.lang;
+                addChatBubble("assistant", data.response_text || "Audio reply from the unified model", {
+                    badge: data.fallback_mode ? "Fallback" : "Unified",
+                    badgeTone: data.fallback_mode ? "warning" : "success",
+                    audio: data.audio,
+                    format: data.audio_format,
+                });
+
+                if (data.audio) playAudio(data.audio, data.audio_format);
+                else setStatus(data.error || "No audio came back. Try again.", "error");
+
+                if (data.anchor_hash) {
+                    const avatar = document.getElementById("voiceAvatar");
+                    avatar.textContent = data.anchor_hash.slice(0, 2);
+                    avatar.dataset.locked = "";
+                    avatar.style.background = `hsl(${parseInt(data.anchor_hash, 10) % 360} 70% 72%)`;
+                    document.getElementById("voiceStatus").textContent = `#${data.anchor_hash} · ${data.anchor_status}`;
+                }
+            }
+
+            const recorder = ApolloUI.createRecorder({
+                maxMs: 30000,
+                onStart: () => {
+                    ApolloUI.setMicState(micBtn, "recording", MIC_LABELS);
+                    setStatus("Listening… press again to stop");
+                },
+                onStop: async (blob) => {
+                    if (!blob.size) {
+                        ApolloUI.setMicState(micBtn, "idle", MIC_LABELS);
+                        setStatus("Nothing was recorded. Try again.", "error");
+                        return;
+                    }
+                    busy = true;
+                    ApolloUI.setMicState(micBtn, "busy", MIC_LABELS);
+                    setStatus("Running the unified pipeline…");
+                    const form = new FormData();
+                    form.append("audio", blob, "recording.webm");
+                    form.append("language", languages.value());
+                    form.append("reset_anchor", String(resetNext));
+                    try {
+                        const data = await ApolloUI.fetchJson("api/speech-to-speech", { method: "POST", body: form });
+                        resetNext = false;
+                        syncReset();
+                        handleResponse(data);
+                    } catch (err) {
+                        setStatus(err.message, "error");
+                    } finally {
+                        busy = false;
+                        ApolloUI.setMicState(micBtn, "idle", MIC_LABELS);
+                    }
+                },
+                onError: (message) => {
+                    ApolloUI.setMicState(micBtn, "idle", MIC_LABELS);
+                    setStatus(message, "error");
+                },
             });
-        });
-        
-        // Mic button
-        const micBtn = document.getElementById('micBtn');
-        const statusText = document.getElementById('statusText');
-        
-        micBtn.addEventListener('click', toggleRecording);
-        
-        async function toggleRecording() {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                await startRecording();
-            }
-        }
-        
-        async function startRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    stream.getTracks().forEach(t => t.stop());
-                    await processAudio(blob);
-                };
-                
-                mediaRecorder.start(250);
-                isRecording = true;
-                micBtn.classList.add('recording');
-                micBtn.textContent = '⏹️';
-                statusText.textContent = '🔴 Recording...';
-            } catch (e) {
-                statusText.textContent = '❌ Microphone access denied';
-            }
-        }
-        
-        function stopRecording() {
-            if (mediaRecorder) mediaRecorder.stop();
-            isRecording = false;
-            micBtn.classList.remove('recording');
-            micBtn.classList.add('processing');
-            micBtn.textContent = '⏳';
-            statusText.textContent = '⏳ Processing through unified pipeline...';
-        }
-        
-        async function processAudio(blob) {
-            const formData = new FormData();
-            formData.append('audio', blob);
-            formData.append('language', selectedLang);
-            formData.append('reset_anchor', resetNext);
-            
-            // Reset the flag after use unless user explicitly wants to keep resetting (unlikely)
-            if (resetNext) {
-                toggleReset(false); // Turn off reset visual
-                resetNext = false;
-            }
-            
-            try {
-                const response = await fetch('/api/speech-to-speech', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                let data = null;
-                try { data = await response.json(); } catch (err) { /* non-JSON body */ }
-                if (!response.ok) {
-                    throw new Error(data && typeof data.detail === 'string' ? data.detail : `Server returned ${response.status}`);
+
+            micBtn.addEventListener("click", () => {
+                if (busy) return;
+                if (recorder.isRecording()) recorder.stop();
+                else {
+                    if (player) player.pause();
+                    recorder.start();
                 }
-                handleResponse(data);
-            } catch (e) {
-                statusText.textContent = '❌ ' + (e.message || 'Processing failed');
-                micBtn.classList.remove('processing');
-                micBtn.textContent = '🎤';
-            }
-        }
-        
-        function handleResponse(data) {
-            micBtn.classList.remove('processing');
-            micBtn.textContent = '🎤';
-            
-            // Update metrics
-            if (data.metrics) {
-                if (data.metrics.snac_encode_ms) 
-                    document.getElementById('encodeMetric').textContent = Math.round(data.metrics.snac_encode_ms);
-                if (data.metrics.llm_generate_ms)
-                    document.getElementById('llmMetric').textContent = Math.round(data.metrics.llm_generate_ms);
-                if (data.metrics.snac_decode_ms)
-                    document.getElementById('decodeMetric').textContent = Math.round(data.metrics.snac_decode_ms);
-                if (data.metrics.total_ms)
-                    document.getElementById('totalMetric').textContent = Math.round(data.metrics.total_ms);
-            }
-            
-            // Show fallback notice if applicable
-            if (data.fallback_mode) {
-                document.getElementById('fallbackNotice').style.display = 'block';
-            }
-            
-            // Add chat bubbles
-            addChatBubble('user', data.transcription || '[Audio input]');
-            addChatBubble('assistant', data.response_text || '[Response generated]');
-            
-            // Play audio
-            if (data.audio) {
-                statusText.textContent = '🔊 Playing response...';
-                playAudio(data.audio, data.audio_format);
-            } else {
-                statusText.textContent = data.error ? '❌ ' + data.error : 'Click to record';
-            }
-            
-            // Update Voice UI
-            if (data.anchor_hash) {
-                document.getElementById('voiceStatus').textContent = `ID: #${data.anchor_hash} • ${data.anchor_status}`;
-                document.getElementById('voiceAvatar').textContent = '🗣️';
-                document.getElementById('voiceAvatar').style.background = `hsl(${parseInt(data.anchor_hash) % 360}, 70%, 60%)`;
-            }
-        }
-        
-        function toggleReset(forceState = null) {
-            const btn = document.getElementById('resetBtn');
-            if (forceState !== null) {
-                resetNext = forceState;
-            } else {
+            });
+            resetBtn.addEventListener("click", () => {
                 resetNext = !resetNext;
-            }
-            
-            if (resetNext) {
-                btn.classList.add('active');
-                btn.textContent = '⚠️ New Voice Next Turn';
-            } else {
-                btn.classList.remove('active');
-                btn.textContent = '🔄 New Session (Reset Voice)';
-            }
-        }
-        
-        function addChatBubble(type, text) {
-            const container = document.getElementById('chatContainer');
-            const bubble = document.createElement('div');
-            bubble.className = `chat-bubble ${type}`;
-            bubble.textContent = text;
-            container.appendChild(bubble);
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        function playAudio(base64Audio, format = 'mp3') {
-            const mime = format === 'wav' ? 'audio/wav' : 'audio/mpeg';
-            const audio = new Audio(`data:${mime};base64,` + base64Audio);
-            audio.onended = () => {
-                statusText.textContent = 'Click to record';
-            };
-            audio.play().catch(() => {
-                statusText.textContent = '❌ Could not play audio';
+                syncReset();
             });
-        }
+            clearBtn.addEventListener("click", () => {
+                chat.querySelectorAll(".bubble").forEach((b) => b.remove());
+                emptyState.hidden = false;
+                clearBtn.hidden = true;
+                document.getElementById("fallbackNotice").hidden = true;
+            });
+
+            syncReset();
+            checkStatus();
+        });
     </script>
 </body>
 </html>

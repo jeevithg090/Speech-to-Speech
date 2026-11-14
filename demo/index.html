@@ -1,431 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Static kiosk UI prototype for the Apollo Voice Assistant using the browser Web Speech API.">
-    <title>Apollo Voice Assistant - Kiosk Prototype</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kiosk Prototype · Apollo Voice Engine</title>
+    <meta name="description" content="Static kiosk UI prototype for the Apollo Voice Assistant: speak in Hindi, Tamil, Telugu or Kannada using the browser Web Speech API. No backend required.">
+    <meta name="theme-color" content="#f4f7fa">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Apollo Voice Engine · Kiosk prototype">
+    <meta property="og:description" content="Static, backend-free kiosk prototype using browser speech recognition and synthesis.">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/apollo.css">
+    <script>try{var t=localStorage.getItem("apollo-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+    <script src="assets/apollo-ui.js" defer></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 10px;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 5px;
-            background: linear-gradient(90deg, #00d4ff, #00ff88);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .subtitle {
-            color: #888;
-            margin-bottom: 30px;
-            font-size: 0.9rem;
-        }
-
-        .language-selector {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        .lang-btn {
-            padding: 12px 20px;
-            border: 2px solid #334;
-            background: rgba(255, 255, 255, 0.05);
-            color: #aaa;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .lang-btn:hover {
-            border-color: #00d4ff;
-            color: white;
-        }
-
-        .lang-btn.active {
-            background: linear-gradient(135deg, #00d4ff, #00ff88);
-            color: #1a1a2e;
-            border-color: transparent;
-            font-weight: bold;
-        }
-
-        .mic-container {
-            position: relative;
-            margin: 40px 0;
-        }
-
-        .mic-btn {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            color: white;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 40px rgba(231, 76, 60, 0.4);
-            margin: 0 auto;
-        }
-
-        .mic-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 15px 50px rgba(231, 76, 60, 0.5);
-        }
-
-        .mic-btn.recording {
-            animation: pulse 1s infinite;
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            box-shadow: 0 10px 40px rgba(46, 204, 113, 0.5);
-        }
-
-        .mic-btn.speaking {
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-            box-shadow: 0 10px 40px rgba(155, 89, 182, 0.5);
-            animation: pulse 0.5s infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-        }
-
-        .status {
-            margin-top: 20px;
-            font-size: 1.1rem;
-            color: #00d4ff;
-            min-height: 30px;
-        }
-
-        .transcript-box {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 20px;
-            min-height: 60px;
-            display: none;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .transcript-box.visible {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .transcript-label {
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 8px;
-        }
-
-        .transcript-text {
-            font-size: 1.1rem;
-            color: #00ff88;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .footer {
-            margin-top: 40px;
-            color: #555;
-            font-size: 0.8rem;
-        }
-
-        .footer span {
-            color: #00d4ff;
-        }
-
-        .wave-container {
-            display: flex;
-            gap: 3px;
-            justify-content: center;
-            height: 40px;
-            align-items: center;
-            margin: 15px 0;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .wave-container.active {
-            opacity: 1;
-        }
-
-        .wave-bar {
-            width: 4px;
-            background: linear-gradient(to top, #00d4ff, #00ff88);
-            border-radius: 2px;
-            animation: wave 0.8s ease-in-out infinite;
-        }
-
-        .wave-bar:nth-child(1) {
-            height: 10px;
-            animation-delay: 0s;
-        }
-
-        .wave-bar:nth-child(2) {
-            height: 20px;
-            animation-delay: 0.1s;
-        }
-
-        .wave-bar:nth-child(3) {
-            height: 30px;
-            animation-delay: 0.2s;
-        }
-
-        .wave-bar:nth-child(4) {
-            height: 20px;
-            animation-delay: 0.3s;
-        }
-
-        .wave-bar:nth-child(5) {
-            height: 10px;
-            animation-delay: 0.4s;
-        }
-
-        @keyframes wave {
-
-            0%,
-            100% {
-                transform: scaleY(1);
-            }
-
-            50% {
-                transform: scaleY(1.8);
-            }
-        }
+        .kiosk { align-items: center; text-align: center; gap: var(--space-5); padding-top: var(--space-6); padding-bottom: var(--space-6); }
+        .kiosk .mic__btn { width: 128px; height: 128px; }
+        .kiosk .mic__btn .icon { width: 52px; height: 52px; }
+        .kiosk .segmented { justify-content: center; }
+        .kiosk .segmented__option { min-width: 96px; font-size: var(--text-lg); }
+        .transcript { width: 100%; text-align: left; }
+        .wave { display: flex; gap: 4px; height: 28px; align-items: center; justify-content: center; }
+        .wave span { width: 5px; height: 8px; border-radius: 3px; background: var(--danger); animation: wave 0.9s ease-in-out infinite; }
+        .wave span:nth-child(2) { animation-delay: 0.1s; }
+        .wave span:nth-child(3) { animation-delay: 0.2s; }
+        .wave span:nth-child(4) { animation-delay: 0.3s; }
+        .wave span:nth-child(5) { animation-delay: 0.4s; }
+        @keyframes wave { 50% { height: 26px; } }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="logo">🏥</div>
-        <h1>Apollo Voice Assistant</h1>
-        <p class="subtitle">Real-time Speech-to-Speech for Indian Languages</p>
+    <a class="skip-link" href="#main">Skip to content</a>
 
-        <div class="language-selector">
-            <button type="button" class="lang-btn" data-lang="hi" aria-pressed="false">हिंदी</button>
-            <button type="button" class="lang-btn" data-lang="ta" aria-pressed="false">தமிழ்</button>
-            <button type="button" class="lang-btn" data-lang="te" aria-pressed="false">తెలుగు</button>
-            <button type="button" class="lang-btn active" data-lang="kn" aria-pressed="true">ಕನ್ನಡ</button>
+    <header class="app-header">
+        <div class="app-header__inner">
+            <a class="brand" href="./">
+                <img class="brand__mark" src="assets/favicon.svg" alt="" width="32" height="32">
+                <span class="brand__text">
+                    <span class="brand__name">Apollo Voice Assistant</span>
+                    <span class="brand__product">Kiosk prototype · runs in the browser</span>
+                </span>
+            </a>
+            <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch theme">
+                <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+                <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            </button>
         </div>
+    </header>
 
-        <div class="mic-container">
-            <button type="button" class="mic-btn" id="micBtn" aria-label="Start or stop listening">🎤</button>
-            <div class="wave-container" id="waveContainer">
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
+    <main id="main" class="page page--narrow">
+        <section class="card kiosk" aria-labelledby="pageTitle">
+            <div class="page-intro" style="align-items:center">
+                <h1 id="pageTitle">How can we help you today?</h1>
+                <p>Choose your language and tap the microphone.</p>
             </div>
+
+            <div class="segmented" id="langGroup" role="group" aria-label="Language">
+                <button type="button" class="segmented__option" data-value="hi" aria-pressed="false" lang="hi">हिंदी</button>
+                <button type="button" class="segmented__option" data-value="ta" aria-pressed="false" lang="ta">தமிழ்</button>
+                <button type="button" class="segmented__option" data-value="te" aria-pressed="false" lang="te">తెలుగు</button>
+                <button type="button" class="segmented__option" data-value="kn" aria-pressed="true" lang="kn">ಕನ್ನಡ</button>
+            </div>
+
+            <div class="mic" style="padding:0">
+                <button type="button" class="mic__btn" id="micBtn" data-state="idle" aria-pressed="false" aria-label="Start listening">
+                    <svg class="icon icon-mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
+                    <svg class="icon icon-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+                    <span class="spinner" aria-hidden="true"></span>
+                </button>
+                <div class="wave" id="waveContainer" aria-hidden="true" hidden><span></span><span></span><span></span><span></span><span></span></div>
+                <p class="mic__status" id="status" role="status" aria-live="polite">Tap to speak</p>
+            </div>
+
+            <div class="alert alert--warning" id="unsupported" hidden style="text-align:left">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>
+                <span><strong>Speech recognition isn't available in this browser.</strong>The prototype uses the Web Speech API. Open it in Chrome or Edge to try it.</span>
+            </div>
+
+            <div class="stack transcript" id="transcriptBox" hidden>
+                <div class="result">
+                    <span class="result__meta">You said</span>
+                    <div class="result__text" id="transcriptText"></div>
+                </div>
+                <div class="result result--safe">
+                    <span class="result__meta">Assistant</span>
+                    <div class="result__text" id="replyText"></div>
+                </div>
+            </div>
+        </section>
+
+        <p class="hint" style="text-align:center">Static UI prototype: browser speech recognition and speech synthesis with a canned reply. No backend required.</p>
+    </main>
+
+    <footer class="app-footer">
+        <div class="app-footer__inner">
+            <span>Apollo Omni-Indic Voice Engine · research prototype</span>
+            <span>Not medical advice.</span>
         </div>
-
-        <p class="status" id="status" role="status" aria-live="polite">Tap to speak</p>
-
-        <div class="transcript-box" id="transcriptBox">
-            <div class="transcript-label">🎧 You said:</div>
-            <div class="transcript-text" id="transcriptText"></div>
-        </div>
-
-        <p class="footer">Static UI prototype: browser speech recognition + speech synthesis with a canned reply. <span>No backend required.</span></p>
-    </div>
+    </footer>
 
     <script>
-        // Language-specific responses
-        const responses = {
-            hi: "डॉक्टर राज ग्यारह बजकर तीस मिनट पर आएंगे, कृपया प्रतीक्षा करें",
-            ta: "டாக்டர் ராஜ் பதினொரு முப்பது மணிக்கு வருவார், தயவுசெய்து காத்திருங்கள்",
-            te: "డాక్టర్ రాజ్ పదకొండు ముప్పై నిమిషాలకు వస్తారు, దయచేసి వేచి ఉండండి",
-            kn: "ಡಾಕ್ಟರ್ ರಾಜ್ ಹನ್ನೊಂದು ಮೂವತ್ತಕ್ಕೆ ಬರುತ್ತಾರೆ, ದಯವಿಟ್ಟು ಕಾಯಿರಿ"
-        };
+        document.addEventListener("DOMContentLoaded", () => {
+            const responses = {
+                hi: "डॉक्टर राज ग्यारह बजकर तीस मिनट पर आएंगे, कृपया प्रतीक्षा करें",
+                ta: "டாக்டர் ராஜ் பதினொரு முப்பது மணிக்கு வருவார், தயவுசெய்து காத்திருங்கள்",
+                te: "డాక్టర్ రాజ్ పదకొండు ముప్పై నిమిషాలకు వస్తారు, దయచేసి వేచి ఉండండి",
+                kn: "ಡಾಕ್ಟರ್ ರಾಜ್ ಹನ್ನೊಂದು ಮೂವತ್ತಕ್ಕೆ ಬರುತ್ತಾರೆ, ದಯವಿಟ್ಟು ಕಾಯಿರಿ",
+            };
+            const langCodes = { hi: "hi-IN", ta: "ta-IN", te: "te-IN", kn: "kn-IN" };
+            const ERRORS = {
+                "not-allowed": "Microphone access was blocked. Allow it from the address bar, then tap again.",
+                "no-speech": "I didn't hear anything. Tap and try again.",
+                "audio-capture": "No microphone was found.",
+                network: "Speech recognition needs an internet connection in this browser.",
+            };
+            const MIC_LABELS = { idle: "Start listening", recording: "Stop listening", busy: "Speaking the reply" };
 
-        const langCodes = {
-            hi: 'hi-IN',
-            ta: 'ta-IN',
-            te: 'te-IN',
-            kn: 'kn-IN'
-        };
+            const micBtn = document.getElementById("micBtn");
+            const status = document.getElementById("status");
+            const wave = document.getElementById("waveContainer");
+            const transcriptBox = document.getElementById("transcriptBox");
+            const transcriptText = document.getElementById("transcriptText");
+            const replyText = document.getElementById("replyText");
+            let currentLang = "kn";
+            let isListening = false;
 
-        let currentLang = 'kn';  // Default to Kannada
-        let recognition = null;
-        let isListening = false;
-
-        // Initialize Speech Recognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-        }
-
-        // Language selection
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.lang-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-pressed', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-pressed', 'true');
-                currentLang = btn.dataset.lang;
-                document.getElementById('transcriptBox').classList.remove('visible');
-                document.getElementById('status').textContent = 'Tap to speak';
+            ApolloUI.singleSelect(document.getElementById("langGroup"), (value) => {
+                currentLang = value;
+                transcriptBox.hidden = true;
+                status.textContent = "Tap to speak";
             });
-        });
 
-        // Elements
-        const micBtn = document.getElementById('micBtn');
-        const status = document.getElementById('status');
-        const waveContainer = document.getElementById('waveContainer');
-        const transcriptBox = document.getElementById('transcriptBox');
-        const transcriptText = document.getElementById('transcriptText');
-
-        // Mic button click
-        micBtn.addEventListener('click', () => {
-            if (!recognition) {
-                status.textContent = 'Speech recognition not supported';
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById("unsupported").hidden = false;
+                micBtn.disabled = true;
+                status.textContent = "Not supported in this browser";
                 return;
             }
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
 
-            if (!isListening) {
-                startListening();
-            } else {
-                stopListening();
+            function setListening(on) {
+                isListening = on;
+                ApolloUI.setMicState(micBtn, on ? "recording" : "idle", MIC_LABELS);
+                wave.hidden = !on;
             }
-        });
 
-        function startListening() {
-            recognition.lang = langCodes[currentLang];
-            recognition.start();
-            isListening = true;
-            micBtn.classList.add('recording');
-            micBtn.textContent = '⏹️';
-            status.textContent = 'Listening...';
-            waveContainer.classList.add('active');
-            transcriptBox.classList.remove('visible');
-        }
+            micBtn.addEventListener("click", () => {
+                if (isListening) {
+                    recognition.stop();
+                    return;
+                }
+                speechSynthesis.cancel();
+                transcriptText.textContent = "";
+                transcriptBox.hidden = true;
+                recognition.lang = langCodes[currentLang];
+                try {
+                    recognition.start();
+                    setListening(true);
+                    status.textContent = "Listening…";
+                } catch (err) {
+                    status.textContent = "Couldn't start listening. Try again.";
+                }
+            });
 
-        function stopListening() {
-            recognition.stop();
-            isListening = false;
-            micBtn.classList.remove('recording');
-            micBtn.textContent = '🎤';
-            waveContainer.classList.remove('active');
-        }
-
-        // Speech recognition events
-        if (recognition) {
             recognition.onresult = (event) => {
-                let transcript = '';
+                let transcript = "";
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     transcript += event.results[i][0].transcript;
                 }
                 transcriptText.textContent = transcript;
-                transcriptBox.classList.add('visible');
-            };
-
-            recognition.onend = () => {
-                if (isListening) {
-                    stopListening();
-                }
-
-                // Auto-speak response after recognition ends
-                if (transcriptText.textContent.trim()) {
-                    status.textContent = 'Speaking...';
-                    micBtn.classList.add('speaking');
-                    speakResponse();
-                } else {
-                    status.textContent = 'Tap to speak';
-                }
+                replyText.textContent = "…";
+                transcriptBox.hidden = false;
             };
 
             recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                stopListening();
-                status.textContent = 'Error: ' + event.error;
-            };
-        }
-
-        function speakResponse() {
-            // Cancel any ongoing speech
-            speechSynthesis.cancel();
-
-            const utterance = new SpeechSynthesisUtterance(responses[currentLang]);
-            utterance.lang = langCodes[currentLang];
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-
-            utterance.onend = () => {
-                micBtn.classList.remove('speaking');
-                micBtn.textContent = '🎤';
-                status.textContent = 'Tap to speak again';
+                setListening(false);
+                status.textContent = ERRORS[event.error] || `Speech recognition error: ${event.error}`;
             };
 
-            utterance.onerror = () => {
-                micBtn.classList.remove('speaking');
-                micBtn.textContent = '🎤';
-                status.textContent = 'Speech error, tap to try again';
+            recognition.onend = () => {
+                const heard = transcriptText.textContent.trim();
+                setListening(false);
+                if (heard) speakResponse();
+                else if (status.textContent === "Listening…") status.textContent = "Tap to speak";
             };
 
-            // Small delay then speak
-            setTimeout(() => {
-                speechSynthesis.speak(utterance);
-            }, 300);
-        }
+            function speakResponse() {
+                replyText.textContent = responses[currentLang];
+                replyText.lang = currentLang;
+                ApolloUI.setMicState(micBtn, "busy", MIC_LABELS);
+                status.textContent = "Speaking…";
+                const utterance = new SpeechSynthesisUtterance(responses[currentLang]);
+                utterance.lang = langCodes[currentLang];
+                utterance.rate = 0.9;
+                const done = (message) => {
+                    ApolloUI.setMicState(micBtn, "idle", MIC_LABELS);
+                    status.textContent = message;
+                };
+                utterance.onend = () => done("Tap to speak again");
+                utterance.onerror = () => done("This browser has no voice for that language. The reply is shown above.");
+                speechSynthesis.cancel();
+                setTimeout(() => speechSynthesis.speak(utterance), 300);
+            }
+        });
     </script>
 </body>
-
 </html>
